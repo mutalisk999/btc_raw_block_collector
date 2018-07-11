@@ -1,6 +1,8 @@
 package rawblock
 
-import "github.com/mutalisk999/bitcoin-lib/src/bigint"
+import (
+	"github.com/mutalisk999/bitcoin-lib/src/bigint"
+)
 
 type RawBlockIndex struct {
 	BlockHeight        uint
@@ -16,6 +18,7 @@ type RawBlockIndexManager struct {
 type RawBlock struct {
 	BlockHeight  uint
 	BlockHash    bigint.Uint256
+	CompressedType byte
 	RawBlockSize uint
 	RawBlockData []byte
 }
