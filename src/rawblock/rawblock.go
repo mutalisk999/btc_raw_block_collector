@@ -6,6 +6,7 @@ import (
 	"sync"
 )
 
+
 type RawBlockIndex struct {
 	BlockHeight        uint
 	BlockHash          bigint.Uint256
@@ -20,13 +21,13 @@ type RawBlockIndexManager struct {
 	blockIndexMutex    *sync.Mutex
 }
 
-func (r* RawBlockIndexManager) Init(indexName string) error {
+func (r* RawBlockIndexManager) Init(indexDir string, indexName string) error {
 	if r.blockIndexMutex == nil {
 		r.blockIndexMutex = new(sync.Mutex)
 	}
 	r.blockIndexMutex.Lock()
 	var err error
-	r.BlockIndexFileObj, err = os.OpenFile(indexName, os.O_CREATE|os.O_RDWR|os.O_APPEND, os.ModeAppend|os.ModePerm)
+	r.BlockIndexFileObj, err = os.OpenFile(indexDir + "/" + indexName, os.O_CREATE|os.O_RDWR|os.O_APPEND, os.ModeAppend|os.ModePerm)
 	if err != nil {
 		r.blockIndexMutex.Unlock()
 		return err
@@ -50,13 +51,13 @@ type RawBlockManager struct {
 	rawBlockMutex   *sync.Mutex
 }
 
-func (r* RawBlockManager) Init(dataNamePrefix string, fileTag uint) error {
+func (r* RawBlockManager) Init(dataDir string, dataNamePrefix string, fileTag uint) error {
 	if r.rawBlockMutex == nil {
 		r.rawBlockMutex = new(sync.Mutex)
 	}
 	r.rawBlockMutex.Lock()
 	var err error
-	rawBlockFileName := dataNamePrefix + "." + string(fileTag)
+	rawBlockFileName := dataDir + "/" + dataNamePrefix + "." + string(fileTag)
 	r.RawBlockFileObj, err = os.OpenFile(rawBlockFileName, os.O_CREATE|os.O_RDWR|os.O_APPEND, os.ModeAppend|os.ModePerm)
 	if err != nil {
 		r.rawBlockMutex.Unlock()
