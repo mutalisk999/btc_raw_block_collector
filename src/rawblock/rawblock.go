@@ -1,12 +1,12 @@
 package rawblock
 
 import (
-	"github.com/mutalisk999/bitcoin-lib/src/bigint"
 	"os"
 	"sync"
 	"io"
-	"serialize"
-	"blob"
+	"github.com/mutalisk999/bitcoin-lib/src/bigint"
+	"github.com/mutalisk999/bitcoin-lib/src/serialize"
+	"github.com/mutalisk999/bitcoin-lib/src/blob"
 )
 
 const (

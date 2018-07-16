@@ -5,6 +5,7 @@ import (
 	"os"
 	"errors"
 	"fmt"
+	"io"
 )
 
 var blockIndexMgr *rawblock.RawBlockIndexManager
@@ -58,6 +59,7 @@ func appInit() error {
 		if indexSize % rawblock.RawBlockIndexSize != 0 {
 			return errors.New("invalid raw block index size")
 		}
+		// the latest block index
 		err, ptrBlockIndex := blockIndexMgr.GetLatestIndex()
 		if err != nil {
 			return err
@@ -65,13 +67,28 @@ func appInit() error {
 		if ptrBlockIndex.RawBlockFileTag != latestRawBlockMgr.RawBlockFileTag {
 			return errors.New("ptrBlockIndex.RawBlockFileTag != latestRawBlockMgr.RawBlockFileTag")
 		}
-
+		// skip the latest raw block
+		err, _ = latestRawBlockMgr.GetRawBlock(ptrBlockIndex.RawBlockFileOffset)
+		if err != nil {
+			return err
+		}
+		curOffSet, err := latestRawBlockMgr.RawBlockFileObj.Seek(0, io.SeekCurrent)
+		if err != nil {
+			return err
+		}
+		endOffSet, err := latestRawBlockMgr.RawBlockFileObj.Seek(0, io.SeekEnd)
+		if err != nil {
+			return err
+		}
+		// if reach the end of the file or not
+		if curOffSet != endOffSet {
+			return errors.New("curOffSet != endOffSet")
+		}
 	} else {
 		if latestRawBlockMgr.RawBlockFileTag != 0 || latestRawBlockInfo.Size() != 0 {
 			return errors.New("index is not match from raw block, need to rebuild index")
 		}
 	}
-
 	return nil
 }
 
