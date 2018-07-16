@@ -7,6 +7,7 @@ import (
 	"github.com/mutalisk999/bitcoin-lib/src/bigint"
 	"github.com/mutalisk999/bitcoin-lib/src/serialize"
 	"github.com/mutalisk999/bitcoin-lib/src/blob"
+	"strconv"
 )
 
 const (
@@ -167,7 +168,7 @@ func (r* RawBlockManager) Init(dataDir string, dataNamePrefix string, fileTag ui
 	}
 	r.rawBlockMutex.Lock()
 	var err error
-	rawBlockFileName := dataDir + "/" + dataNamePrefix + "." + string(fileTag)
+	rawBlockFileName := dataDir + "/" + dataNamePrefix + "." + strconv.Itoa(int(fileTag))
 	r.RawBlockFileObj, err = os.OpenFile(rawBlockFileName, os.O_CREATE|os.O_RDWR|os.O_APPEND, os.ModeAppend|os.ModePerm)
 	if err != nil {
 		r.rawBlockMutex.Unlock()
