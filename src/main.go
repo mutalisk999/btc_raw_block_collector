@@ -4,6 +4,7 @@ import (
 	"rawblock"
 	"os"
 	"errors"
+	"fmt"
 )
 
 var blockIndexMgr *rawblock.RawBlockIndexManager
@@ -24,7 +25,7 @@ func appInit() error {
 	}
 
 	// find latest raw block tag
-	var tag uint = 0
+	var tag uint32 = 0
 	for {
 		var tagNext = tag + 1
 		rawBlockFileNext := dataDir + "/" + rawBlockFilePrefix +
@@ -42,22 +43,33 @@ func appInit() error {
 	if err != nil {
 		return err
 	}
-
-	// verify raw block index
 	indexInfo, err := blockIndexMgr.BlockIndexFileObj.Stat()
 	if err != nil {
 		return err
 	}
-	indexSize := indexInfo.Size()
-	if indexSize % 48 != 0 {
-		return errors.New("invalid raw block index size")
+	latestRawBlockInfo, err := latestRawBlockMgr.RawBlockFileObj.Stat()
+	if err != nil {
+		return err
 	}
 
-	// verify block file
-	if indexSize != 0 {
+	// verify raw block and raw block index
+	if indexInfo.Size() != 0 {
+		indexSize := indexInfo.Size()
+		if indexSize % rawblock.RawBlockIndexSize != 0 {
+			return errors.New("invalid raw block index size")
+		}
+		err, ptrBlockIndex := blockIndexMgr.GetLatestIndex()
+		if err != nil {
+			return err
+		}
+		if ptrBlockIndex.RawBlockFileTag != latestRawBlockMgr.RawBlockFileTag {
+			return errors.New("ptrBlockIndex.RawBlockFileTag != latestRawBlockMgr.RawBlockFileTag")
+		}
 
 	} else {
-
+		if latestRawBlockMgr.RawBlockFileTag != 0 || latestRawBlockInfo.Size() != 0 {
+			return errors.New("index is not match from raw block, need to rebuild index")
+		}
 	}
 
 	return nil
@@ -71,7 +83,7 @@ func main() {
 	var err error
 	err = appInit()
 	if err != nil {
-		return
+		fmt.Println(err)
 	}
 	appRun()
 }
