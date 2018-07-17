@@ -1,13 +1,13 @@
 package rawblock
 
 import (
-	"os"
-	"sync"
-	"io"
 	"github.com/mutalisk999/bitcoin-lib/src/bigint"
-	"github.com/mutalisk999/bitcoin-lib/src/serialize"
 	"github.com/mutalisk999/bitcoin-lib/src/blob"
+	"github.com/mutalisk999/bitcoin-lib/src/serialize"
+	"io"
+	"os"
 	"strconv"
+	"sync"
 )
 
 const (
@@ -47,7 +47,7 @@ func (r RawBlockIndex) Pack(writer io.Writer) error {
 	return nil
 }
 
-func (r* RawBlockIndex) UnPack(reader io.Reader) error {
+func (r *RawBlockIndex) UnPack(reader io.Reader) error {
 	var err error
 	r.BlockHeight, err = serialize.UnPackUint32(reader)
 	if err != nil {
@@ -78,13 +78,13 @@ type RawBlockIndexManager struct {
 	blockIndexMutex    *sync.Mutex
 }
 
-func (r* RawBlockIndexManager) Init(indexDir string, indexName string) error {
+func (r *RawBlockIndexManager) Init(indexDir string, indexName string) error {
 	if r.blockIndexMutex == nil {
 		r.blockIndexMutex = new(sync.Mutex)
 	}
 	r.blockIndexMutex.Lock()
 	var err error
-	r.BlockIndexFileObj, err = os.OpenFile(indexDir + "/" + indexName, os.O_CREATE|os.O_RDWR|os.O_APPEND, os.ModeAppend|os.ModePerm)
+	r.BlockIndexFileObj, err = os.OpenFile(indexDir+"/"+indexName, os.O_CREATE|os.O_RDWR|os.O_APPEND, os.ModeAppend|os.ModePerm)
 	if err != nil {
 		r.blockIndexMutex.Unlock()
 		return err
@@ -94,9 +94,9 @@ func (r* RawBlockIndexManager) Init(indexDir string, indexName string) error {
 	return nil
 }
 
-func (r* RawBlockIndexManager) GetLatestIndex() (error, *RawBlockIndex) {
+func (r *RawBlockIndexManager) GetLatestIndex() (error, *RawBlockIndex) {
 	r.blockIndexMutex.Lock()
-	r.BlockIndexFileObj.Seek(-1 * RawBlockIndexSize, io.SeekEnd)
+	r.BlockIndexFileObj.Seek(-1*RawBlockIndexSize, io.SeekEnd)
 	ptrBlockIndex := new(RawBlockIndex)
 	err := ptrBlockIndex.UnPack(r.BlockIndexFileObj)
 	if err != nil {
@@ -105,6 +105,18 @@ func (r* RawBlockIndexManager) GetLatestIndex() (error, *RawBlockIndex) {
 	}
 	r.blockIndexMutex.Unlock()
 	return nil, ptrBlockIndex
+}
+
+func (r *RawBlockIndexManager) AddNewBlockIndex(newBlockIndex *RawBlockIndex) error {
+	r.blockIndexMutex.Lock()
+	r.BlockIndexFileObj.Seek(int64(0), io.SeekEnd)
+	err := newBlockIndex.Pack(r.BlockIndexFileObj)
+	if err != nil {
+		r.blockIndexMutex.Unlock()
+		return err
+	}
+	r.blockIndexMutex.Unlock()
+	return nil
 }
 
 type RawBlock struct {
@@ -162,7 +174,7 @@ type RawBlockManager struct {
 	rawBlockMutex   *sync.Mutex
 }
 
-func (r* RawBlockManager) Init(dataDir string, dataNamePrefix string, fileTag uint32) error {
+func (r *RawBlockManager) Init(dataDir string, dataNamePrefix string, fileTag uint32) error {
 	if r.rawBlockMutex == nil {
 		r.rawBlockMutex = new(sync.Mutex)
 	}
@@ -179,7 +191,7 @@ func (r* RawBlockManager) Init(dataDir string, dataNamePrefix string, fileTag ui
 	return nil
 }
 
-func (r* RawBlockManager) GetRawBlock(offset uint32) (error, *RawBlock) {
+func (r *RawBlockManager) GetRawBlock(offset uint32) (error, *RawBlock) {
 	r.rawBlockMutex.Lock()
 	r.RawBlockFileObj.Seek(int64(offset), io.SeekStart)
 	ptrRawBlock := new(RawBlock)
@@ -190,4 +202,16 @@ func (r* RawBlockManager) GetRawBlock(offset uint32) (error, *RawBlock) {
 	}
 	r.rawBlockMutex.Unlock()
 	return nil, ptrRawBlock
+}
+
+func (r *RawBlockManager) AddNewBlock(newBlock *RawBlock) error {
+	r.rawBlockMutex.Lock()
+	r.RawBlockFileObj.Seek(int64(0), io.SeekEnd)
+	err := newBlock.Pack(r.RawBlockFileObj)
+	if err != nil {
+		r.rawBlockMutex.Unlock()
+		return err
+	}
+	r.rawBlockMutex.Unlock()
+	return nil
 }
