@@ -160,9 +160,12 @@ func rebuildIndex() error {
 	var err error
 	var tag uint32
 	// remove block index
-	err = os.Remove(dataDir + "/" + blockIndexName)
-	if err != nil {
-		return err
+	_, err = os.Stat(dataDir + "/" + blockIndexName)
+	if err == nil {
+		err = os.Remove(dataDir + "/" + blockIndexName)
+		if err != nil {
+			return err
+		}
 	}
 
 	// init raw block index manager
@@ -181,11 +184,11 @@ func rebuildIndex() error {
 	for i := 0; i <= int(tag); i++ {
 		// raw block manager
 		rawBlockMgr := new(rawblock.RawBlockManager)
-		err = rawBlockMgr.Init(dataDir, rawBlockFilePrefix, tag)
+		err = rawBlockMgr.Init(dataDir, rawBlockFilePrefix, uint32(i))
 		if err != nil {
 			return err
 		}
-		rawBlockInfo, err := os.Stat(dataDir + "/" + rawBlockFilePrefix + "." + strconv.Itoa(int(tag)))
+		rawBlockInfo, err := os.Stat(dataDir + "/" + rawBlockFilePrefix + "." + strconv.Itoa(i))
 		if err != nil {
 			return err
 		}
@@ -209,7 +212,7 @@ func rebuildIndex() error {
 			blockIndexNew.BlockHeight = ptrRawBlock.BlockHeight
 			blockIndexNew.BlockHash = ptrRawBlock.BlockHash
 			blockIndexNew.RawBlockSize = uint32(len(ptrRawBlock.RawBlockData.GetData()))
-			blockIndexNew.RawBlockFileTag = tag
+			blockIndexNew.RawBlockFileTag = uint32(i)
 			blockIndexNew.BlockFileStartPos = offSetBefore
 			blockIndexNew.BlockFileEndPos = offSetAfter
 			err = indexMgr.AddNewBlockIndex(blockIndexNew)

@@ -17,9 +17,9 @@ const (
 func CompactSize(ui64 uint64) uint32 {
 	if ui64 < 253 {
 		return 1
-	} else if ui64 <= (2<<16)-1 {
+	} else if ui64 <= (2<<(16-1)) {
 		return 1 + 2
-	} else if ui64 <= (2<<32)-1 {
+	} else if ui64 <= (2<<(32-1)) {
 		return 1 + 4
 	} else {
 		return 1 + 8
