@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"github.com/mutalisk999/go-lib/src/sched/goroutine_mgr"
 	"github.com/ybbus/jsonrpc"
+	"os"
 	"rawblock"
+	"strconv"
 	"time"
 )
 
@@ -92,7 +94,7 @@ func doGatherBlock(goroutine goroutine_mgr.Goroutine, args ...interface{}) {
 				rawBlockNew.BlockHash.SetHex(blockHash)
 				rawBlockNew.CompressedType = 0
 				rawBlockNew.RawBlockData.SetHex(rawBlockData)
-				blockFileInfo, err := latestRawBlockMgr.RawBlockFileObj.Stat()
+				blockFileInfo, err := os.Stat(dataDir + "/" + rawBlockFilePrefix + "." + strconv.Itoa(int(latestRawBlockMgr.RawBlockFileTag)))
 				if err != nil {
 					break
 				}
@@ -101,12 +103,16 @@ func doGatherBlock(goroutine goroutine_mgr.Goroutine, args ...interface{}) {
 					newRawBlockMgr.Init(dataDir, rawBlockFilePrefix, latestRawBlockMgr.RawBlockFileTag+1)
 					latestRawBlockMgr.RawBlockFileObj.Close()
 					latestRawBlockMgr = newRawBlockMgr
-					blockFileInfo, err = latestRawBlockMgr.RawBlockFileObj.Stat()
+					blockFileInfo, err = os.Stat(dataDir + "/" + rawBlockFilePrefix + "." + strconv.Itoa(int(latestRawBlockMgr.RawBlockFileTag)))
 					if err != nil {
 						break
 					}
 				}
-				latestRawBlockMgr.AddNewBlock(rawBlockNew)
+				startPos := latestRawBlockMgr.BlockFilePos
+				err = latestRawBlockMgr.AddNewBlock(rawBlockNew)
+				if err != nil {
+					break
+				}
 
 				// add new block index
 				blockIndexNew := new(rawblock.RawBlockIndex)
@@ -114,9 +120,15 @@ func doGatherBlock(goroutine goroutine_mgr.Goroutine, args ...interface{}) {
 				blockIndexNew.BlockHash.SetHex(blockHash)
 				blockIndexNew.RawBlockSize = uint32(len(rawBlockData) / 2)
 				blockIndexNew.RawBlockFileTag = latestRawBlockMgr.RawBlockFileTag
-				blockIndexNew.RawBlockFileOffset = uint32(blockFileInfo.Size())
-				blockIndexMgr.AddNewBlockIndex(blockIndexNew)
+				blockIndexNew.BlockFileStartPos = startPos
+				blockIndexNew.BlockFileEndPos = latestRawBlockMgr.BlockFilePos
+				err = blockIndexMgr.AddNewBlockIndex(blockIndexNew)
+				if err != nil {
+					break
+				}
 			}
+			// if break from the inside loop for, break from the outside loop for
+			break
 		}
 	}
 	quitChan <- 0x0

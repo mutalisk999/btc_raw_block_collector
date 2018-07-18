@@ -11,15 +11,29 @@ import (
 )
 
 const (
-	RawBlockIndexSize = 4 + 32 + 4 + 4 + 4
+	RawBlockIndexSize = 4 + 32 + 4 + 4 + 4 + 4
 )
 
+func CompactSize(ui64 uint64) uint32 {
+	if ui64 < 253 {
+		return 1
+	} else if ui64 <= (2<<16)-1 {
+		return 1 + 2
+	} else if ui64 <= (2<<32)-1 {
+		return 1 + 4
+	} else {
+		return 1 + 8
+	}
+	return 0
+}
+
 type RawBlockIndex struct {
-	BlockHeight        uint32
-	BlockHash          bigint.Uint256
-	RawBlockSize       uint32
-	RawBlockFileTag    uint32
-	RawBlockFileOffset uint32
+	BlockHeight       uint32
+	BlockHash         bigint.Uint256
+	RawBlockSize      uint32
+	RawBlockFileTag   uint32
+	BlockFileStartPos uint32
+	BlockFileEndPos   uint32
 }
 
 func (r RawBlockIndex) Pack(writer io.Writer) error {
@@ -40,7 +54,11 @@ func (r RawBlockIndex) Pack(writer io.Writer) error {
 	if err != nil {
 		return err
 	}
-	err = serialize.PackUint32(writer, r.RawBlockFileOffset)
+	err = serialize.PackUint32(writer, r.BlockFileStartPos)
+	if err != nil {
+		return err
+	}
+	err = serialize.PackUint32(writer, r.BlockFileEndPos)
 	if err != nil {
 		return err
 	}
@@ -65,7 +83,11 @@ func (r *RawBlockIndex) UnPack(reader io.Reader) error {
 	if err != nil {
 		return err
 	}
-	r.RawBlockFileOffset, err = serialize.UnPackUint32(reader)
+	r.BlockFileStartPos, err = serialize.UnPackUint32(reader)
+	if err != nil {
+		return err
+	}
+	r.BlockFileEndPos, err = serialize.UnPackUint32(reader)
 	if err != nil {
 		return err
 	}
@@ -75,6 +97,7 @@ func (r *RawBlockIndex) UnPack(reader io.Reader) error {
 type RawBlockIndexManager struct {
 	BlockIndexFileName string
 	BlockIndexFileObj  *os.File
+	BlockFileIndexPos  uint32
 	blockIndexMutex    *sync.Mutex
 }
 
@@ -89,32 +112,20 @@ func (r *RawBlockIndexManager) Init(indexDir string, indexName string) error {
 		r.blockIndexMutex.Unlock()
 		return err
 	}
+	r.BlockFileIndexPos = 0
 	r.BlockIndexFileName = indexName
 	r.blockIndexMutex.Unlock()
 	return nil
 }
 
-func (r *RawBlockIndexManager) GetLatestIndex() (error, *RawBlockIndex) {
-	r.blockIndexMutex.Lock()
-	r.BlockIndexFileObj.Seek(-1*RawBlockIndexSize, io.SeekEnd)
-	ptrBlockIndex := new(RawBlockIndex)
-	err := ptrBlockIndex.UnPack(r.BlockIndexFileObj)
-	if err != nil {
-		r.blockIndexMutex.Unlock()
-		return err, nil
-	}
-	r.blockIndexMutex.Unlock()
-	return nil, ptrBlockIndex
-}
-
 func (r *RawBlockIndexManager) AddNewBlockIndex(newBlockIndex *RawBlockIndex) error {
 	r.blockIndexMutex.Lock()
-	r.BlockIndexFileObj.Seek(int64(0), io.SeekEnd)
 	err := newBlockIndex.Pack(r.BlockIndexFileObj)
 	if err != nil {
 		r.blockIndexMutex.Unlock()
 		return err
 	}
+	r.BlockFileIndexPos = r.BlockFileIndexPos + RawBlockIndexSize
 	r.blockIndexMutex.Unlock()
 	return nil
 }
@@ -147,6 +158,10 @@ func (r RawBlock) Pack(writer io.Writer) error {
 	return nil
 }
 
+func (r RawBlock) PackSize() uint32 {
+	return 4 + 32 + 1 + CompactSize(uint64(len(r.RawBlockData.GetData()))) + uint32(len(r.RawBlockData.GetData()))
+}
+
 func (r *RawBlock) UnPack(reader io.Reader) error {
 	var err error
 	r.BlockHeight, err = serialize.UnPackUint32(reader)
@@ -169,9 +184,11 @@ func (r *RawBlock) UnPack(reader io.Reader) error {
 }
 
 type RawBlockManager struct {
-	RawBlockFileTag uint32
-	RawBlockFileObj *os.File
-	rawBlockMutex   *sync.Mutex
+	RawBlockFileName string
+	RawBlockFileTag  uint32
+	RawBlockFileObj  *os.File
+	BlockFilePos     uint32
+	rawBlockMutex    *sync.Mutex
 }
 
 func (r *RawBlockManager) Init(dataDir string, dataNamePrefix string, fileTag uint32) error {
@@ -186,32 +203,21 @@ func (r *RawBlockManager) Init(dataDir string, dataNamePrefix string, fileTag ui
 		r.rawBlockMutex.Unlock()
 		return err
 	}
+	r.RawBlockFileName = rawBlockFileName
 	r.RawBlockFileTag = fileTag
+	r.BlockFilePos = 0
 	r.rawBlockMutex.Unlock()
 	return nil
 }
 
-func (r *RawBlockManager) GetRawBlock(offset uint32) (error, *RawBlock) {
-	r.rawBlockMutex.Lock()
-	r.RawBlockFileObj.Seek(int64(offset), io.SeekStart)
-	ptrRawBlock := new(RawBlock)
-	err := ptrRawBlock.UnPack(r.RawBlockFileObj)
-	if err != nil {
-		r.rawBlockMutex.Unlock()
-		return err, nil
-	}
-	r.rawBlockMutex.Unlock()
-	return nil, ptrRawBlock
-}
-
 func (r *RawBlockManager) AddNewBlock(newBlock *RawBlock) error {
 	r.rawBlockMutex.Lock()
-	r.RawBlockFileObj.Seek(int64(0), io.SeekEnd)
 	err := newBlock.Pack(r.RawBlockFileObj)
 	if err != nil {
 		r.rawBlockMutex.Unlock()
 		return err
 	}
+	r.BlockFilePos = r.BlockFilePos + newBlock.PackSize()
 	r.rawBlockMutex.Unlock()
 	return nil
 }

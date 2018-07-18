@@ -3,13 +3,14 @@ package main
 import (
 	"bufio"
 	"errors"
+	"flag"
 	"fmt"
 	"github.com/mutalisk999/go-lib/src/sched/goroutine_mgr"
 	"io"
 	"os"
 	"rawblock"
-	"strings"
 	"strconv"
+	"strings"
 )
 
 var goroutineMgr *goroutine_mgr.GoroutineManager
@@ -25,6 +26,20 @@ var quitChan chan byte
 var latestBlockHeight = uint32(0)
 
 var rpcUrl = "http://test:test@192.168.1.107:30011"
+
+func getLatestRawBlockTag() (uint32, error) {
+	var tag uint32 = 0
+	for {
+		var tagNext = tag + 1
+		rawBlockFileNext := dataDir + "/" + rawBlockFilePrefix + "." + strconv.Itoa(int(tagNext))
+		_, err := os.Stat(rawBlockFileNext)
+		if err != nil {
+			break
+		}
+		tag = tagNext
+	}
+	return tag, nil
+}
 
 func appInit() error {
 	// init quit channel
@@ -43,15 +58,9 @@ func appInit() error {
 	}
 
 	// find latest raw block tag
-	var tag uint32 = 0
-	for {
-		var tagNext = tag + 1
-		rawBlockFileNext := dataDir + "/" + rawBlockFilePrefix + "." + strconv.Itoa(int(tagNext))
-		_, err := os.Stat(rawBlockFileNext)
-		if err != nil {
-			break
-		}
-		tag = tagNext
+	tag, err := getLatestRawBlockTag()
+	if err != nil {
+		return err
 	}
 
 	// init latest raw block manager
@@ -60,11 +69,11 @@ func appInit() error {
 	if err != nil {
 		return err
 	}
-	indexInfo, err := blockIndexMgr.BlockIndexFileObj.Stat()
+	indexInfo, err := os.Stat(dataDir + "/" + blockIndexName)
 	if err != nil {
 		return err
 	}
-	latestRawBlockInfo, err := latestRawBlockMgr.RawBlockFileObj.Stat()
+	latestRawBlockInfo, err := os.Stat(dataDir + "/" + rawBlockFilePrefix + "." + strconv.Itoa(int(tag)))
 	if err != nil {
 		return err
 	}
@@ -76,30 +85,27 @@ func appInit() error {
 			return errors.New("invalid raw block index size")
 		}
 		// the latest block index
-		err, ptrBlockIndex := blockIndexMgr.GetLatestIndex()
+		IndexMgr := new(rawblock.RawBlockIndexManager)
+		err = IndexMgr.Init(dataDir, blockIndexName)
 		if err != nil {
 			return err
 		}
+		_, err = IndexMgr.BlockIndexFileObj.Seek(-1*rawblock.RawBlockIndexSize, io.SeekEnd)
+		if err != nil {
+			return err
+		}
+		ptrBlockIndex := new(rawblock.RawBlockIndex)
+		err := ptrBlockIndex.UnPack(IndexMgr.BlockIndexFileObj)
+		if err != nil {
+			return err
+		}
+
 		latestBlockHeight = ptrBlockIndex.BlockHeight
 		if ptrBlockIndex.RawBlockFileTag != latestRawBlockMgr.RawBlockFileTag {
 			return errors.New("ptrBlockIndex.RawBlockFileTag != latestRawBlockMgr.RawBlockFileTag")
 		}
-		// skip the latest raw block
-		err, _ = latestRawBlockMgr.GetRawBlock(ptrBlockIndex.RawBlockFileOffset)
-		if err != nil {
-			return err
-		}
-		curOffSet, err := latestRawBlockMgr.RawBlockFileObj.Seek(0, io.SeekCurrent)
-		if err != nil {
-			return err
-		}
-		endOffSet, err := latestRawBlockMgr.RawBlockFileObj.Seek(0, io.SeekEnd)
-		if err != nil {
-			return err
-		}
-		// if reach the end of the file or not
-		if curOffSet != endOffSet {
-			return errors.New("curOffSet != endOffSet")
+		if ptrBlockIndex.BlockFileEndPos != uint32(latestRawBlockInfo.Size()) {
+			return errors.New("ptrBlockIndex.BlockFileEndPos != uint32(latestRawBlockInfo.Size())")
 		}
 	} else {
 		latestBlockHeight = uint32(0)
@@ -150,18 +156,106 @@ func appCmd() error {
 	return nil
 }
 
+func rebuildIndex() error {
+	var err error
+	var tag uint32
+	// remove block index
+	err = os.Remove(dataDir + "/" + blockIndexName)
+	if err != nil {
+		return err
+	}
+
+	// init raw block index manager
+	indexMgr := new(rawblock.RawBlockIndexManager)
+	err = indexMgr.Init(dataDir, blockIndexName)
+	if err != nil {
+		return err
+	}
+
+	// find latest raw block tag
+	tag, err = getLatestRawBlockTag()
+	if err != nil {
+		return err
+	}
+
+	for i := 0; i <= int(tag); i++ {
+		// raw block manager
+		rawBlockMgr := new(rawblock.RawBlockManager)
+		err = rawBlockMgr.Init(dataDir, rawBlockFilePrefix, tag)
+		if err != nil {
+			return err
+		}
+		rawBlockInfo, err := os.Stat(dataDir + "/" + rawBlockFilePrefix + "." + strconv.Itoa(int(tag)))
+		if err != nil {
+			return err
+		}
+
+		var offSetBefore uint32 = 0
+		var offSetAfter uint32 = 0
+		for {
+			_, err = rawBlockMgr.RawBlockFileObj.Seek(int64(offSetBefore), io.SeekStart)
+			if err != nil {
+				return err
+			}
+			ptrRawBlock := new(rawblock.RawBlock)
+			err := ptrRawBlock.UnPack(rawBlockMgr.RawBlockFileObj)
+			if err != nil {
+				return err
+			}
+			offSetAfter = offSetBefore + ptrRawBlock.PackSize()
+
+			// add new block index
+			blockIndexNew := new(rawblock.RawBlockIndex)
+			blockIndexNew.BlockHeight = ptrRawBlock.BlockHeight
+			blockIndexNew.BlockHash = ptrRawBlock.BlockHash
+			blockIndexNew.RawBlockSize = uint32(len(ptrRawBlock.RawBlockData.GetData()))
+			blockIndexNew.RawBlockFileTag = tag
+			blockIndexNew.BlockFileStartPos = offSetBefore
+			blockIndexNew.BlockFileEndPos = offSetAfter
+			err = indexMgr.AddNewBlockIndex(blockIndexNew)
+			if err != nil {
+				return err
+			}
+
+			if offSetAfter == uint32(rawBlockInfo.Size()) {
+				// reach the end of the raw block file
+				break
+			}
+			offSetBefore = offSetAfter
+		}
+	}
+	fmt.Println("rebuild index has been finished")
+
+	return nil
+}
+
 func main() {
 	var err error
+	reindex := flag.Bool("reindex", false, "rebuild index")
+	flag.Parse()
+	// rebuild index
+	if *reindex {
+		err = rebuildIndex()
+		if err != nil {
+			fmt.Println(err)
+		}
+		return
+	}
+
 	err = appInit()
 	if err != nil {
 		fmt.Println(err)
+		return
 	}
 	err = appRun()
 	if err != nil {
 		fmt.Println(err)
+		return
 	}
 	err = appCmd()
 	if err != nil {
 		fmt.Println(err)
+		return
 	}
+	return
 }
