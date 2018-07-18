@@ -9,6 +9,7 @@ import (
 	"os"
 	"rawblock"
 	"strings"
+	"strconv"
 )
 
 var goroutineMgr *goroutine_mgr.GoroutineManager
@@ -45,8 +46,7 @@ func appInit() error {
 	var tag uint32 = 0
 	for {
 		var tagNext = tag + 1
-		rawBlockFileNext := dataDir + "/" + rawBlockFilePrefix +
-			"." + string(tagNext)
+		rawBlockFileNext := dataDir + "/" + rawBlockFilePrefix + "." + strconv.Itoa(int(tagNext))
 		_, err := os.Stat(rawBlockFileNext)
 		if err != nil {
 			break
@@ -111,6 +111,7 @@ func appInit() error {
 }
 
 func appRun() error {
+	startSignalHandler()
 	startGatherBlock()
 	return nil
 }

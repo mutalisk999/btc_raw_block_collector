@@ -102,6 +102,9 @@ func doGatherBlock(goroutine goroutine_mgr.Goroutine, args ...interface{}) {
 					latestRawBlockMgr.RawBlockFileObj.Close()
 					latestRawBlockMgr = newRawBlockMgr
 					blockFileInfo, err = latestRawBlockMgr.RawBlockFileObj.Stat()
+					if err != nil {
+						break
+					}
 				}
 				latestRawBlockMgr.AddNewBlock(rawBlockNew)
 
