@@ -71,15 +71,17 @@ func doGatherBlock(goroutine goroutine_mgr.Goroutine, args ...interface{}) {
 		if err != nil {
 			break
 		}
-		if latestBlockHeight >= blockCount {
+		
+		if latestRawBlockMgr.BlockHeight >= blockCount {
 			time.Sleep(5 * 1000 * 1000 * 1000)
 		} else {
 			for {
 				if quitFlag {
 					break
 				}
-				latestBlockHeight += 1
-				blockHash, err := getBlockHashRpc(latestBlockHeight)
+
+				NewBlockHeight := latestRawBlockMgr.BlockHeight + 1
+				blockHash, err := getBlockHashRpc(NewBlockHeight)
 				if err != nil {
 					break
 				}
@@ -90,7 +92,7 @@ func doGatherBlock(goroutine goroutine_mgr.Goroutine, args ...interface{}) {
 
 				// add new block data
 				rawBlockNew := new(rawblock.RawBlock)
-				rawBlockNew.BlockHeight = latestBlockHeight
+				rawBlockNew.BlockHeight = NewBlockHeight
 				rawBlockNew.BlockHash.SetHex(blockHash)
 				rawBlockNew.CompressedType = 0
 				rawBlockNew.RawBlockData.SetHex(rawBlockData)
@@ -101,6 +103,8 @@ func doGatherBlock(goroutine goroutine_mgr.Goroutine, args ...interface{}) {
 				if blockFileInfo.Size() > 1*1024*1024*1024 {
 					newRawBlockMgr := new(rawblock.RawBlockManager)
 					newRawBlockMgr.Init(dataDir, rawBlockFilePrefix, latestRawBlockMgr.RawBlockFileTag+1)
+					newRawBlockMgr.BlockHeight = latestRawBlockMgr.BlockHeight
+					newRawBlockMgr.BlockFileEndPos = 0
 					latestRawBlockMgr.RawBlockFileObj.Close()
 					latestRawBlockMgr = newRawBlockMgr
 					blockFileInfo, err = os.Stat(dataDir + "/" + rawBlockFilePrefix + "." + strconv.Itoa(int(latestRawBlockMgr.RawBlockFileTag)))
@@ -108,7 +112,7 @@ func doGatherBlock(goroutine goroutine_mgr.Goroutine, args ...interface{}) {
 						break
 					}
 				}
-				startPos := latestRawBlockMgr.BlockFilePos
+				startPos := latestRawBlockMgr.BlockFileEndPos
 				err = latestRawBlockMgr.AddNewBlock(rawBlockNew)
 				if err != nil {
 					break
@@ -116,16 +120,18 @@ func doGatherBlock(goroutine goroutine_mgr.Goroutine, args ...interface{}) {
 
 				// add new block index
 				blockIndexNew := new(rawblock.RawBlockIndex)
-				blockIndexNew.BlockHeight = latestBlockHeight
+				blockIndexNew.BlockHeight = NewBlockHeight
 				blockIndexNew.BlockHash.SetHex(blockHash)
 				blockIndexNew.RawBlockSize = uint32(len(rawBlockData) / 2)
 				blockIndexNew.RawBlockFileTag = latestRawBlockMgr.RawBlockFileTag
 				blockIndexNew.BlockFileStartPos = startPos
-				blockIndexNew.BlockFileEndPos = latestRawBlockMgr.BlockFilePos
+				blockIndexNew.BlockFileEndPos = latestRawBlockMgr.BlockFileEndPos
 				err = blockIndexMgr.AddNewBlockIndex(blockIndexNew)
 				if err != nil {
 					break
 				}
+
+				latestRawBlockMgr.BlockHeight += 1
 			}
 			// if break from the inside loop for, break from the outside loop for
 			break

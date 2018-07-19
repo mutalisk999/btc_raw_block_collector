@@ -14,12 +14,12 @@ const (
 	RawBlockIndexSize = 4 + 32 + 4 + 4 + 4 + 4
 )
 
-func CompactSize(ui64 uint64) uint32 {
+func CompactSizeLen(ui64 uint64) uint32 {
 	if ui64 < 253 {
 		return 1
-	} else if ui64 <= (2<<(16-1)) {
+	} else if ui64 <= ((2 << 15) - 1) {
 		return 1 + 2
-	} else if ui64 <= (2<<(32-1)) {
+	} else if ui64 <= ((2 << 31) - 1) {
 		return 1 + 4
 	} else {
 		return 1 + 8
@@ -98,16 +98,16 @@ type RawBlockIndexManager struct {
 	BlockIndexFileName string
 	BlockIndexFileObj  *os.File
 	BlockFileIndexPos  uint32
-	blockIndexMutex    *sync.Mutex
+	blockIndexMutex    *sync.RWMutex
 }
 
 func (r *RawBlockIndexManager) Init(indexDir string, indexName string) error {
 	if r.blockIndexMutex == nil {
-		r.blockIndexMutex = new(sync.Mutex)
+		r.blockIndexMutex = new(sync.RWMutex)
 	}
 	r.blockIndexMutex.Lock()
 	var err error
-	r.BlockIndexFileObj, err = os.OpenFile(indexDir+"/"+indexName, os.O_CREATE|os.O_RDWR|os.O_APPEND, os.ModeAppend|os.ModePerm)
+	r.BlockIndexFileObj, err = os.OpenFile(indexDir+"/"+indexName, os.O_CREATE|os.O_RDWR|os.O_APPEND, os.ModeAppend)
 	if err != nil {
 		r.blockIndexMutex.Unlock()
 		return err
@@ -159,7 +159,7 @@ func (r RawBlock) Pack(writer io.Writer) error {
 }
 
 func (r RawBlock) PackSize() uint32 {
-	return 4 + 32 + 1 + CompactSize(uint64(len(r.RawBlockData.GetData()))) + uint32(len(r.RawBlockData.GetData()))
+	return 4 + 32 + 1 + CompactSizeLen(uint64(len(r.RawBlockData.GetData()))) + uint32(len(r.RawBlockData.GetData()))
 }
 
 func (r *RawBlock) UnPack(reader io.Reader) error {
@@ -187,25 +187,27 @@ type RawBlockManager struct {
 	RawBlockFileName string
 	RawBlockFileTag  uint32
 	RawBlockFileObj  *os.File
-	BlockFilePos     uint32
-	rawBlockMutex    *sync.Mutex
+	BlockHeight      uint32
+	BlockFileEndPos  uint32
+	rawBlockMutex    *sync.RWMutex
 }
 
 func (r *RawBlockManager) Init(dataDir string, dataNamePrefix string, fileTag uint32) error {
 	if r.rawBlockMutex == nil {
-		r.rawBlockMutex = new(sync.Mutex)
+		r.rawBlockMutex = new(sync.RWMutex)
 	}
 	r.rawBlockMutex.Lock()
 	var err error
 	rawBlockFileName := dataDir + "/" + dataNamePrefix + "." + strconv.Itoa(int(fileTag))
-	r.RawBlockFileObj, err = os.OpenFile(rawBlockFileName, os.O_CREATE|os.O_RDWR|os.O_APPEND, os.ModeAppend|os.ModePerm)
+	r.RawBlockFileObj, err = os.OpenFile(rawBlockFileName, os.O_CREATE|os.O_RDWR|os.O_APPEND, os.ModeAppend)
 	if err != nil {
 		r.rawBlockMutex.Unlock()
 		return err
 	}
 	r.RawBlockFileName = rawBlockFileName
 	r.RawBlockFileTag = fileTag
-	r.BlockFilePos = 0
+	r.BlockHeight = 0
+	r.BlockFileEndPos = 0
 	r.rawBlockMutex.Unlock()
 	return nil
 }
@@ -217,7 +219,7 @@ func (r *RawBlockManager) AddNewBlock(newBlock *RawBlock) error {
 		r.rawBlockMutex.Unlock()
 		return err
 	}
-	r.BlockFilePos = r.BlockFilePos + newBlock.PackSize()
+	r.BlockFileEndPos = r.BlockFileEndPos + newBlock.PackSize()
 	r.rawBlockMutex.Unlock()
 	return nil
 }

@@ -23,7 +23,6 @@ var rawBlockFilePrefix = "raw_block"
 
 var quitFlag = false
 var quitChan chan byte
-var latestBlockHeight = uint32(0)
 
 var rpcUrl = "http://test:test@192.168.1.107:30011"
 
@@ -100,15 +99,18 @@ func appInit() error {
 			return err
 		}
 
-		latestBlockHeight = ptrBlockIndex.BlockHeight
+		latestRawBlockMgr.BlockHeight = ptrBlockIndex.BlockHeight
+		latestRawBlockMgr.BlockFileEndPos = ptrBlockIndex.BlockFileEndPos
 		if ptrBlockIndex.RawBlockFileTag != latestRawBlockMgr.RawBlockFileTag {
 			return errors.New("ptrBlockIndex.RawBlockFileTag != latestRawBlockMgr.RawBlockFileTag")
 		}
 		if ptrBlockIndex.BlockFileEndPos != uint32(latestRawBlockInfo.Size()) {
+			fmt.Println(ptrBlockIndex.BlockFileEndPos, latestRawBlockInfo.Size())
 			return errors.New("ptrBlockIndex.BlockFileEndPos != uint32(latestRawBlockInfo.Size())")
 		}
 	} else {
-		latestBlockHeight = uint32(0)
+		latestRawBlockMgr.BlockHeight = uint32(0)
+		latestRawBlockMgr.BlockFileEndPos = uint32(0)
 		if latestRawBlockMgr.RawBlockFileTag != 0 || latestRawBlockInfo.Size() != 0 {
 			return errors.New("index is not match from raw block, need to rebuild index")
 		}
@@ -147,19 +149,26 @@ func appCmd() error {
 			quitFlag = true
 			break
 		} else if strLine == "getblockcount" {
-			fmt.Println(latestBlockHeight)
+			fmt.Println(latestRawBlockMgr.BlockHeight)
+		} else if strLine == "goroutinestatus" {
+			goroutineMgr.GoroutineDump()
 		} else {
 			fmt.Println("not support command: ", strLine)
 		}
 	}
 	<-quitChan
+
+	// sync and close
+	blockIndexMgr.BlockIndexFileObj.Close()
+	latestRawBlockMgr.RawBlockFileObj.Close()
+
 	return nil
 }
 
 func rebuildIndex() error {
 	var err error
 	var tag uint32
-	// remove block index
+	// remove block index if index exist
 	_, err = os.Stat(dataDir + "/" + blockIndexName)
 	if err == nil {
 		err = os.Remove(dataDir + "/" + blockIndexName)
@@ -196,10 +205,6 @@ func rebuildIndex() error {
 		var offSetBefore uint32 = 0
 		var offSetAfter uint32 = 0
 		for {
-			_, err = rawBlockMgr.RawBlockFileObj.Seek(int64(offSetBefore), io.SeekStart)
-			if err != nil {
-				return err
-			}
 			ptrRawBlock := new(rawblock.RawBlock)
 			err := ptrRawBlock.UnPack(rawBlockMgr.RawBlockFileObj)
 			if err != nil {
@@ -236,6 +241,7 @@ func main() {
 	var err error
 	reindex := flag.Bool("reindex", false, "rebuild index")
 	flag.Parse()
+
 	// rebuild index
 	if *reindex {
 		err = rebuildIndex()
