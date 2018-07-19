@@ -71,7 +71,7 @@ func doGatherBlock(goroutine goroutine_mgr.Goroutine, args ...interface{}) {
 		if err != nil {
 			break
 		}
-		
+
 		if latestRawBlockMgr.BlockHeight >= blockCount {
 			time.Sleep(5 * 1000 * 1000 * 1000)
 		} else {
@@ -80,13 +80,19 @@ func doGatherBlock(goroutine goroutine_mgr.Goroutine, args ...interface{}) {
 					break
 				}
 
+				if latestRawBlockMgr.BlockHeight >= blockCount {
+					break
+				}
 				NewBlockHeight := latestRawBlockMgr.BlockHeight + 1
+
 				blockHash, err := getBlockHashRpc(NewBlockHeight)
 				if err != nil {
+					quitFlag = true
 					break
 				}
 				rawBlockData, err := getRawBlock(blockHash)
 				if err != nil {
+					quitFlag = true
 					break
 				}
 
@@ -98,6 +104,7 @@ func doGatherBlock(goroutine goroutine_mgr.Goroutine, args ...interface{}) {
 				rawBlockNew.RawBlockData.SetHex(rawBlockData)
 				blockFileInfo, err := os.Stat(dataDir + "/" + rawBlockFilePrefix + "." + strconv.Itoa(int(latestRawBlockMgr.RawBlockFileTag)))
 				if err != nil {
+					quitFlag = true
 					break
 				}
 				if blockFileInfo.Size() > 1*1024*1024*1024 {
@@ -109,12 +116,14 @@ func doGatherBlock(goroutine goroutine_mgr.Goroutine, args ...interface{}) {
 					latestRawBlockMgr = newRawBlockMgr
 					blockFileInfo, err = os.Stat(dataDir + "/" + rawBlockFilePrefix + "." + strconv.Itoa(int(latestRawBlockMgr.RawBlockFileTag)))
 					if err != nil {
+						quitFlag = true
 						break
 					}
 				}
 				startPos := latestRawBlockMgr.BlockFileEndPos
 				err = latestRawBlockMgr.AddNewBlock(rawBlockNew)
 				if err != nil {
+					quitFlag = true
 					break
 				}
 
@@ -128,13 +137,16 @@ func doGatherBlock(goroutine goroutine_mgr.Goroutine, args ...interface{}) {
 				blockIndexNew.BlockFileEndPos = latestRawBlockMgr.BlockFileEndPos
 				err = blockIndexMgr.AddNewBlockIndex(blockIndexNew)
 				if err != nil {
+					quitFlag = true
 					break
 				}
 
 				latestRawBlockMgr.BlockHeight += 1
 			}
 			// if break from the inside loop for, break from the outside loop for
-			break
+			if quitFlag == true {
+				break
+			}
 		}
 	}
 	quitChan <- 0x0

@@ -231,9 +231,27 @@ func rebuildIndex() error {
 			}
 			offSetBefore = offSetAfter
 		}
+		var completeRate float64 = float64(i+1) * float64(100) / float64(tag+1)
+		fmt.Println("reindex", rawBlockFilePrefix+"."+strconv.Itoa(i), "ok...", strconv.FormatFloat(completeRate, 'f', 2, 64)+"%")
 	}
 	fmt.Println("rebuild index has been finished")
 
+	return nil
+}
+
+func lockDataDir() error {
+	_, err := os.OpenFile(dataDir+"/.lock", os.O_CREATE|os.O_EXCL, os.ModePerm)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func unLockDataDir() error {
+	err := os.Remove(dataDir + "/.lock")
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -242,29 +260,40 @@ func main() {
 	reindex := flag.Bool("reindex", false, "rebuild index")
 	flag.Parse()
 
+	err = lockDataDir()
+	if err != nil {
+		fmt.Println(dataDir, "cannot obtain a lock on data directory "+dataDir+", probably collector is already running")
+		return
+	}
+
 	// rebuild index
 	if *reindex {
 		err = rebuildIndex()
 		if err != nil {
 			fmt.Println(err)
 		}
+		unLockDataDir()
 		return
 	}
 
 	err = appInit()
 	if err != nil {
 		fmt.Println(err)
+		unLockDataDir()
 		return
 	}
 	err = appRun()
 	if err != nil {
 		fmt.Println(err)
+		unLockDataDir()
 		return
 	}
 	err = appCmd()
 	if err != nil {
 		fmt.Println(err)
+		unLockDataDir()
 		return
 	}
+	unLockDataDir()
 	return
 }
