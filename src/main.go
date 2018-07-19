@@ -132,12 +132,14 @@ func appCmd() error {
 	for {
 		_, err := stdoutWriter.WriteString(">>>")
 		if err != nil {
-			return err
+			quitFlag = true
+			break
 		}
 		stdoutWriter.Flush()
 		strLine, err := stdinReader.ReadString('\n')
 		if err != nil {
-			return err
+			quitFlag = true
+			break
 		}
 		strLine = strings.Trim(strLine, "\x0a")
 		strLine = strings.Trim(strLine, "\x0d")
@@ -240,10 +242,11 @@ func rebuildIndex() error {
 }
 
 func lockDataDir() error {
-	_, err := os.OpenFile(dataDir+"/.lock", os.O_CREATE|os.O_EXCL, os.ModePerm)
+	lockFile, err := os.OpenFile(dataDir+"/.lock", os.O_CREATE|os.O_EXCL, os.ModePerm)
 	if err != nil {
 		return err
 	}
+	lockFile.Close()
 	return nil
 }
 
