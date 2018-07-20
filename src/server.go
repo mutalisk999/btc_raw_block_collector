@@ -91,9 +91,9 @@ func rpcServer(goroutine goroutine_mgr.Goroutine, args ...interface{}) {
 	rpcService := new(Service)
 	rpcServer.RegisterService(rpcService, "")
 
-	router := mux.NewRouter()
-	router.Handle("/", rpcServer)
-	http.ListenAndServe(rpcListenEndPoint, router)
+	urlRouter := mux.NewRouter()
+	urlRouter.Handle("/", rpcServer)
+	http.ListenAndServe(rpcListenEndPoint, urlRouter)
 }
 
 func startRpcServer() uint64 {
