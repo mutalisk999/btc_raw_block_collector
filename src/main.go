@@ -24,7 +24,14 @@ var rawBlockFilePrefix = "raw_block"
 var quitFlag = false
 var quitChan chan byte
 
-var rpcUrl = "http://test:test@192.168.1.107:30011"
+var heightToHashMap = make(map[uint32]string)
+var hashToHeightMap = make(map[string]uint32)
+
+// as jsonrpc client
+var rpcReqUrl = "http://test:test@192.168.1.107:30011"
+
+// as jsonrpc server
+var rpcListenEndPoint = "0.0.0.0:38080"
 
 func getLatestRawBlockTag() (uint32, error) {
 	var tag uint32 = 0
@@ -108,6 +115,21 @@ func appInit() error {
 			fmt.Println(ptrBlockIndex.BlockFileEndPos, latestRawBlockInfo.Size())
 			return errors.New("ptrBlockIndex.BlockFileEndPos != uint32(latestRawBlockInfo.Size())")
 		}
+
+		// load raw_block_index to map
+		_, err = IndexMgr.BlockIndexFileObj.Seek(0, io.SeekStart)
+		if err != nil {
+			return err
+		}
+		for i := 1; i <= int(latestRawBlockMgr.BlockHeight); i++ {
+			ptrBlockIndex := new(rawblock.RawBlockIndex)
+			err := ptrBlockIndex.UnPack(IndexMgr.BlockIndexFileObj)
+			if err != nil {
+				return err
+			}
+			heightToHashMap[ptrBlockIndex.BlockHeight] = ptrBlockIndex.BlockHash.GetHex()
+			hashToHeightMap[ptrBlockIndex.BlockHash.GetHex()] = ptrBlockIndex.BlockHeight
+		}
 	} else {
 		latestRawBlockMgr.BlockHeight = uint32(0)
 		latestRawBlockMgr.BlockFileEndPos = uint32(0)
@@ -120,6 +142,7 @@ func appInit() error {
 
 func appRun() error {
 	startSignalHandler()
+	startRpcServer()
 	startGatherBlock()
 	return nil
 }

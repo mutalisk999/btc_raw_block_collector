@@ -11,7 +11,7 @@ import (
 )
 
 func doHttpJsonRpcCall(method string, args ...interface{}) (*jsonrpc.RPCResponse, error) {
-	rpcClient := jsonrpc.NewClient(rpcUrl)
+	rpcClient := jsonrpc.NewClient(rpcReqUrl)
 	rpcResponse, err := rpcClient.Call(method, args)
 	if err != nil {
 		return nil, err
@@ -140,6 +140,10 @@ func doGatherBlock(goroutine goroutine_mgr.Goroutine, args ...interface{}) {
 					quitFlag = true
 					break
 				}
+
+				// add to map
+				heightToHashMap[NewBlockHeight] = blockHash
+				hashToHeightMap[blockHash] = NewBlockHeight
 
 				latestRawBlockMgr.BlockHeight += 1
 			}
