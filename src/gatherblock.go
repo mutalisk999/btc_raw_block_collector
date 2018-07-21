@@ -11,7 +11,7 @@ import (
 )
 
 func doHttpJsonRpcCall(method string, args ...interface{}) (*jsonrpc.RPCResponse, error) {
-	rpcClient := jsonrpc.NewClient(rpcReqUrl)
+	rpcClient := jsonrpc.NewClient(config.RpcClientConfig.RpcReqUrl)
 	rpcResponse, err := rpcClient.Call(method, args)
 	if err != nil {
 		return nil, err
@@ -102,19 +102,19 @@ func doGatherBlock(goroutine goroutine_mgr.Goroutine, args ...interface{}) {
 				rawBlockNew.BlockHash.SetHex(blockHash)
 				rawBlockNew.CompressedType = 0
 				rawBlockNew.RawBlockData.SetHex(rawBlockData)
-				blockFileInfo, err := os.Stat(dataDir + "/" + rawBlockFilePrefix + "." + strconv.Itoa(int(latestRawBlockMgr.RawBlockFileTag)))
+				blockFileInfo, err := os.Stat(config.DataConfig.DataDir + "/" + config.DataConfig.RawBlockFilePrefix + "." + strconv.Itoa(int(latestRawBlockMgr.RawBlockFileTag)))
 				if err != nil {
 					quitFlag = true
 					break
 				}
 				if blockFileInfo.Size() > 1*1024*1024*1024 {
 					newRawBlockMgr := new(rawblock.RawBlockManager)
-					newRawBlockMgr.Init(dataDir, rawBlockFilePrefix, latestRawBlockMgr.RawBlockFileTag+1)
+					newRawBlockMgr.Init(config.DataConfig.DataDir, config.DataConfig.RawBlockFilePrefix, latestRawBlockMgr.RawBlockFileTag+1)
 					newRawBlockMgr.BlockHeight = latestRawBlockMgr.BlockHeight
 					newRawBlockMgr.BlockFileEndPos = 0
 					latestRawBlockMgr.RawBlockFileObj.Close()
 					latestRawBlockMgr = newRawBlockMgr
-					blockFileInfo, err = os.Stat(dataDir + "/" + rawBlockFilePrefix + "." + strconv.Itoa(int(latestRawBlockMgr.RawBlockFileTag)))
+					blockFileInfo, err = os.Stat(config.DataConfig.DataDir + "/" + config.DataConfig.RawBlockFilePrefix + "." + strconv.Itoa(int(latestRawBlockMgr.RawBlockFileTag)))
 					if err != nil {
 						quitFlag = true
 						break

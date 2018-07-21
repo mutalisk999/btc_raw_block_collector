@@ -45,7 +45,7 @@ func (s *Service) GetRawBlock(r *http.Request, args *string, reply *string) erro
 
 	var err error
 	IndexMgr := new(rawblock.RawBlockIndexManager)
-	err = IndexMgr.Init(dataDir, blockIndexName)
+	err = IndexMgr.Init(config.DataConfig.DataDir, config.DataConfig.BlockIndexName)
 	if err != nil {
 		return err
 	}
@@ -62,7 +62,7 @@ func (s *Service) GetRawBlock(r *http.Request, args *string, reply *string) erro
 	}
 
 	rawBlockMgr := new(rawblock.RawBlockManager)
-	err = rawBlockMgr.Init(dataDir, rawBlockFilePrefix, ptrBlockIndex.RawBlockFileTag)
+	err = rawBlockMgr.Init(config.DataConfig.DataDir, config.DataConfig.RawBlockFilePrefix, ptrBlockIndex.RawBlockFileTag)
 	if err != nil {
 		return err
 	}
@@ -93,7 +93,7 @@ func rpcServer(goroutine goroutine_mgr.Goroutine, args ...interface{}) {
 
 	urlRouter := mux.NewRouter()
 	urlRouter.Handle("/", rpcServer)
-	http.ListenAndServe(rpcListenEndPoint, urlRouter)
+	http.ListenAndServe(config.RpcServerConfig.RpcListenEndPoint, urlRouter)
 }
 
 func startRpcServer() uint64 {

@@ -17,9 +17,7 @@ var goroutineMgr *goroutine_mgr.GoroutineManager
 var blockIndexMgr *rawblock.RawBlockIndexManager
 var latestRawBlockMgr *rawblock.RawBlockManager
 
-var dataDir = "block_data"
-var blockIndexName = "raw_block_index"
-var rawBlockFilePrefix = "raw_block"
+var config Config
 
 var quitFlag = false
 var quitChan chan byte
@@ -27,17 +25,11 @@ var quitChan chan byte
 var heightToHashMap = make(map[uint32]string)
 var hashToHeightMap = make(map[string]uint32)
 
-// as jsonrpc client
-var rpcReqUrl = "http://test:test@192.168.1.107:30011"
-
-// as jsonrpc server
-var rpcListenEndPoint = "0.0.0.0:38080"
-
 func getLatestRawBlockTag() (uint32, error) {
 	var tag uint32 = 0
 	for {
 		var tagNext = tag + 1
-		rawBlockFileNext := dataDir + "/" + rawBlockFilePrefix + "." + strconv.Itoa(int(tagNext))
+		rawBlockFileNext := config.DataConfig.DataDir + "/" + config.DataConfig.RawBlockFilePrefix + "." + strconv.Itoa(int(tagNext))
 		_, err := os.Stat(rawBlockFileNext)
 		if err != nil {
 			break
@@ -48,17 +40,17 @@ func getLatestRawBlockTag() (uint32, error) {
 }
 
 func appInit() error {
+	var err error = nil
 	// init quit channel
 	quitChan = make(chan byte)
 
-	var err error = nil
 	// init goroutine manager
 	goroutineMgr = new(goroutine_mgr.GoroutineManager)
 	goroutineMgr.Initialise("MainGoroutineManager")
 
 	// init raw block index manager
 	blockIndexMgr = new(rawblock.RawBlockIndexManager)
-	err = blockIndexMgr.Init(dataDir, blockIndexName)
+	err = blockIndexMgr.Init(config.DataConfig.DataDir, config.DataConfig.BlockIndexName)
 	if err != nil {
 		return err
 	}
@@ -71,15 +63,15 @@ func appInit() error {
 
 	// init latest raw block manager
 	latestRawBlockMgr = new(rawblock.RawBlockManager)
-	err = latestRawBlockMgr.Init(dataDir, rawBlockFilePrefix, tag)
+	err = latestRawBlockMgr.Init(config.DataConfig.DataDir, config.DataConfig.RawBlockFilePrefix, tag)
 	if err != nil {
 		return err
 	}
-	indexInfo, err := os.Stat(dataDir + "/" + blockIndexName)
+	indexInfo, err := os.Stat(config.DataConfig.DataDir + "/" + config.DataConfig.BlockIndexName)
 	if err != nil {
 		return err
 	}
-	latestRawBlockInfo, err := os.Stat(dataDir + "/" + rawBlockFilePrefix + "." + strconv.Itoa(int(tag)))
+	latestRawBlockInfo, err := os.Stat(config.DataConfig.DataDir + "/" + config.DataConfig.RawBlockFilePrefix + "." + strconv.Itoa(int(tag)))
 	if err != nil {
 		return err
 	}
@@ -92,7 +84,7 @@ func appInit() error {
 		}
 		// the latest block index
 		IndexMgr := new(rawblock.RawBlockIndexManager)
-		err = IndexMgr.Init(dataDir, blockIndexName)
+		err = IndexMgr.Init(config.DataConfig.DataDir, config.DataConfig.BlockIndexName)
 		if err != nil {
 			return err
 		}
@@ -194,9 +186,9 @@ func rebuildIndex() error {
 	var err error
 	var tag uint32
 	// remove block index if index exist
-	_, err = os.Stat(dataDir + "/" + blockIndexName)
+	_, err = os.Stat(config.DataConfig.DataDir + "/" + config.DataConfig.BlockIndexName)
 	if err == nil {
-		err = os.Remove(dataDir + "/" + blockIndexName)
+		err = os.Remove(config.DataConfig.DataDir + "/" + config.DataConfig.BlockIndexName)
 		if err != nil {
 			return err
 		}
@@ -204,7 +196,7 @@ func rebuildIndex() error {
 
 	// init raw block index manager
 	indexMgr := new(rawblock.RawBlockIndexManager)
-	err = indexMgr.Init(dataDir, blockIndexName)
+	err = indexMgr.Init(config.DataConfig.DataDir, config.DataConfig.BlockIndexName)
 	if err != nil {
 		return err
 	}
@@ -218,11 +210,11 @@ func rebuildIndex() error {
 	for i := 0; i <= int(tag); i++ {
 		// raw block manager
 		rawBlockMgr := new(rawblock.RawBlockManager)
-		err = rawBlockMgr.Init(dataDir, rawBlockFilePrefix, uint32(i))
+		err = rawBlockMgr.Init(config.DataConfig.DataDir, config.DataConfig.RawBlockFilePrefix, uint32(i))
 		if err != nil {
 			return err
 		}
-		rawBlockInfo, err := os.Stat(dataDir + "/" + rawBlockFilePrefix + "." + strconv.Itoa(i))
+		rawBlockInfo, err := os.Stat(config.DataConfig.DataDir + "/" + config.DataConfig.RawBlockFilePrefix + "." + strconv.Itoa(i))
 		if err != nil {
 			return err
 		}
@@ -257,7 +249,7 @@ func rebuildIndex() error {
 			offSetBefore = offSetAfter
 		}
 		var completeRate float64 = float64(i+1) * float64(100) / float64(tag+1)
-		fmt.Println("reindex", rawBlockFilePrefix+"."+strconv.Itoa(i), "ok...", strconv.FormatFloat(completeRate, 'f', 2, 64)+"%")
+		fmt.Println("reindex", config.DataConfig.RawBlockFilePrefix+"."+strconv.Itoa(i), "ok...", strconv.FormatFloat(completeRate, 'f', 2, 64)+"%")
 	}
 	fmt.Println("rebuild index has been finished")
 
@@ -265,7 +257,7 @@ func rebuildIndex() error {
 }
 
 func lockDataDir() error {
-	lockFile, err := os.OpenFile(dataDir+"/.lock", os.O_CREATE|os.O_EXCL, os.ModePerm)
+	lockFile, err := os.OpenFile(config.DataConfig.DataDir+"/.lock", os.O_CREATE|os.O_EXCL, os.ModePerm)
 	if err != nil {
 		return err
 	}
@@ -274,7 +266,7 @@ func lockDataDir() error {
 }
 
 func unLockDataDir() error {
-	err := os.Remove(dataDir + "/.lock")
+	err := os.Remove(config.DataConfig.DataDir + "/.lock")
 	if err != nil {
 		return err
 	}
@@ -286,9 +278,16 @@ func main() {
 	reindex := flag.Bool("reindex", false, "rebuild index")
 	flag.Parse()
 
+	// init config
+	jsonParser := new(JsonStruct)
+	err = jsonParser.Load("config.json", &config)
+	if err != nil {
+		return
+	}
+
 	err = lockDataDir()
 	if err != nil {
-		fmt.Println(dataDir, "cannot obtain a lock on data directory "+dataDir+", probably collector is already running")
+		fmt.Println(config.DataConfig.DataDir, "cannot obtain a lock on data directory "+config.DataConfig.DataDir+", probably collector is already running")
 		return
 	}
 

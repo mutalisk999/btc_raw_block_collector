@@ -1,0 +1,13 @@
+{
+  "dataConfig":{
+    "dataDir":"block_data",
+    "blockIndexName":"raw_block_index",
+    "rawBlockFilePrefix":"raw_block"
+  },
+  "rpcClientConfig":{
+    "rpcReqUrl":"http://test:test@192.168.1.107:30011"
+  },
+  "rpcServerConfig":{
+    "rpcListenEndPoint":"0.0.0.0:38080"
+  }
+}
