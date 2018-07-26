@@ -14,19 +14,6 @@ const (
 	RawBlockIndexSize = 4 + 32 + 4 + 4 + 4 + 4
 )
 
-func CompactSizeLen(ui64 uint64) uint32 {
-	if ui64 < 253 {
-		return 1
-	} else if ui64 <= ((2 << 15) - 1) {
-		return 1 + 2
-	} else if ui64 <= ((2 << 31) - 1) {
-		return 1 + 4
-	} else {
-		return 1 + 8
-	}
-	return 0
-}
-
 type RawBlockIndex struct {
 	BlockHeight       uint32
 	BlockHash         bigint.Uint256
@@ -159,7 +146,7 @@ func (r RawBlock) Pack(writer io.Writer) error {
 }
 
 func (r RawBlock) PackSize() uint32 {
-	return 4 + 32 + 1 + CompactSizeLen(uint64(len(r.RawBlockData.GetData()))) + uint32(len(r.RawBlockData.GetData()))
+	return 4 + 32 + 1 + serialize.CompactSizeLen(uint64(len(r.RawBlockData.GetData()))) + uint32(len(r.RawBlockData.GetData()))
 }
 
 func (r *RawBlock) UnPack(reader io.Reader) error {
