@@ -8,14 +8,13 @@ import (
 	"github.com/mutalisk999/go-lib/src/sched/goroutine_mgr"
 	"io"
 	"os"
-	"rawblock"
 	"strconv"
 	"strings"
 )
 
 var goroutineMgr *goroutine_mgr.GoroutineManager
-var blockIndexMgr *rawblock.RawBlockIndexManager
-var latestRawBlockMgr *rawblock.RawBlockManager
+var blockIndexMgr *RawBlockIndexManager
+var latestRawBlockMgr *RawBlockManager
 
 var config Config
 
@@ -49,7 +48,7 @@ func appInit() error {
 	goroutineMgr.Initialise("MainGoroutineManager")
 
 	// init raw block index manager
-	blockIndexMgr = new(rawblock.RawBlockIndexManager)
+	blockIndexMgr = new(RawBlockIndexManager)
 	err = blockIndexMgr.Init(config.DataConfig.DataDir, config.DataConfig.BlockIndexName)
 	if err != nil {
 		return err
@@ -62,7 +61,7 @@ func appInit() error {
 	}
 
 	// init latest raw block manager
-	latestRawBlockMgr = new(rawblock.RawBlockManager)
+	latestRawBlockMgr = new(RawBlockManager)
 	err = latestRawBlockMgr.Init(config.DataConfig.DataDir, config.DataConfig.RawBlockFilePrefix, tag)
 	if err != nil {
 		return err
@@ -79,20 +78,20 @@ func appInit() error {
 	// verify raw block and raw block index
 	if indexInfo.Size() != 0 {
 		indexSize := indexInfo.Size()
-		if indexSize%rawblock.RawBlockIndexSize != 0 {
+		if indexSize%RawBlockIndexSize != 0 {
 			return errors.New("invalid raw block index size")
 		}
 		// the latest block index
-		IndexMgr := new(rawblock.RawBlockIndexManager)
+		IndexMgr := new(RawBlockIndexManager)
 		err = IndexMgr.Init(config.DataConfig.DataDir, config.DataConfig.BlockIndexName)
 		if err != nil {
 			return err
 		}
-		_, err = IndexMgr.BlockIndexFileObj.Seek(-1*rawblock.RawBlockIndexSize, io.SeekEnd)
+		_, err = IndexMgr.BlockIndexFileObj.Seek(-1*RawBlockIndexSize, io.SeekEnd)
 		if err != nil {
 			return err
 		}
-		ptrBlockIndex := new(rawblock.RawBlockIndex)
+		ptrBlockIndex := new(RawBlockIndex)
 		err := ptrBlockIndex.UnPack(IndexMgr.BlockIndexFileObj)
 		if err != nil {
 			return err
@@ -114,7 +113,7 @@ func appInit() error {
 			return err
 		}
 		for i := 1; i <= int(latestRawBlockMgr.BlockHeight); i++ {
-			ptrBlockIndex := new(rawblock.RawBlockIndex)
+			ptrBlockIndex := new(RawBlockIndex)
 			err := ptrBlockIndex.UnPack(IndexMgr.BlockIndexFileObj)
 			if err != nil {
 				return err
@@ -195,7 +194,7 @@ func rebuildIndex() error {
 	}
 
 	// init raw block index manager
-	indexMgr := new(rawblock.RawBlockIndexManager)
+	indexMgr := new(RawBlockIndexManager)
 	err = indexMgr.Init(config.DataConfig.DataDir, config.DataConfig.BlockIndexName)
 	if err != nil {
 		return err
@@ -209,7 +208,7 @@ func rebuildIndex() error {
 
 	for i := 0; i <= int(tag); i++ {
 		// raw block manager
-		rawBlockMgr := new(rawblock.RawBlockManager)
+		rawBlockMgr := new(RawBlockManager)
 		err = rawBlockMgr.Init(config.DataConfig.DataDir, config.DataConfig.RawBlockFilePrefix, uint32(i))
 		if err != nil {
 			return err
@@ -222,7 +221,7 @@ func rebuildIndex() error {
 		var offSetBefore uint32 = 0
 		var offSetAfter uint32 = 0
 		for {
-			ptrRawBlock := new(rawblock.RawBlock)
+			ptrRawBlock := new(RawBlock)
 			err := ptrRawBlock.UnPack(rawBlockMgr.RawBlockFileObj)
 			if err != nil {
 				return err
@@ -230,7 +229,7 @@ func rebuildIndex() error {
 			offSetAfter = offSetBefore + ptrRawBlock.PackSize()
 
 			// add new block index
-			blockIndexNew := new(rawblock.RawBlockIndex)
+			blockIndexNew := new(RawBlockIndex)
 			blockIndexNew.BlockHeight = ptrRawBlock.BlockHeight
 			blockIndexNew.BlockHash = ptrRawBlock.BlockHash
 			blockIndexNew.RawBlockSize = uint32(len(ptrRawBlock.RawBlockData.GetData()))

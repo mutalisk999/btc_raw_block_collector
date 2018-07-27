@@ -5,7 +5,6 @@ import (
 	"github.com/mutalisk999/go-lib/src/sched/goroutine_mgr"
 	"github.com/ybbus/jsonrpc"
 	"os"
-	"rawblock"
 	"strconv"
 	"time"
 )
@@ -97,7 +96,7 @@ func doGatherBlock(goroutine goroutine_mgr.Goroutine, args ...interface{}) {
 				}
 
 				// add new block data
-				rawBlockNew := new(rawblock.RawBlock)
+				rawBlockNew := new(RawBlock)
 				rawBlockNew.BlockHeight = NewBlockHeight
 				rawBlockNew.BlockHash.SetHex(blockHash)
 				rawBlockNew.CompressedType = 0
@@ -108,7 +107,7 @@ func doGatherBlock(goroutine goroutine_mgr.Goroutine, args ...interface{}) {
 					break
 				}
 				if blockFileInfo.Size() > 1*1024*1024*1024 {
-					newRawBlockMgr := new(rawblock.RawBlockManager)
+					newRawBlockMgr := new(RawBlockManager)
 					newRawBlockMgr.Init(config.DataConfig.DataDir, config.DataConfig.RawBlockFilePrefix, latestRawBlockMgr.RawBlockFileTag+1)
 					newRawBlockMgr.BlockHeight = latestRawBlockMgr.BlockHeight
 					newRawBlockMgr.BlockFileEndPos = 0
@@ -128,7 +127,7 @@ func doGatherBlock(goroutine goroutine_mgr.Goroutine, args ...interface{}) {
 				}
 
 				// add new block index
-				blockIndexNew := new(rawblock.RawBlockIndex)
+				blockIndexNew := new(RawBlockIndex)
 				blockIndexNew.BlockHeight = NewBlockHeight
 				blockIndexNew.BlockHash.SetHex(blockHash)
 				blockIndexNew.RawBlockSize = uint32(len(rawBlockData) / 2)

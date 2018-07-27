@@ -1,4 +1,4 @@
-package rawblock
+package main
 
 import (
 	"github.com/mutalisk999/bitcoin-lib/src/bigint"

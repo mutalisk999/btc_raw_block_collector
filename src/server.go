@@ -8,7 +8,6 @@ import (
 	"github.com/mutalisk999/go-lib/src/sched/goroutine_mgr"
 	"io"
 	"net/http"
-	"rawblock"
 )
 
 type Service struct {
@@ -44,24 +43,24 @@ func (s *Service) GetRawBlock(r *http.Request, args *string, reply *string) erro
 	}
 
 	var err error
-	IndexMgr := new(rawblock.RawBlockIndexManager)
+	IndexMgr := new(RawBlockIndexManager)
 	err = IndexMgr.Init(config.DataConfig.DataDir, config.DataConfig.BlockIndexName)
 	if err != nil {
 		return err
 	}
 
 	defer IndexMgr.BlockIndexFileObj.Close()
-	_, err = IndexMgr.BlockIndexFileObj.Seek(int64(blockHeight-1)*rawblock.RawBlockIndexSize, io.SeekStart)
+	_, err = IndexMgr.BlockIndexFileObj.Seek(int64(blockHeight-1)*RawBlockIndexSize, io.SeekStart)
 	if err != nil {
 		return err
 	}
-	ptrBlockIndex := new(rawblock.RawBlockIndex)
+	ptrBlockIndex := new(RawBlockIndex)
 	err = ptrBlockIndex.UnPack(IndexMgr.BlockIndexFileObj)
 	if err != nil {
 		return err
 	}
 
-	rawBlockMgr := new(rawblock.RawBlockManager)
+	rawBlockMgr := new(RawBlockManager)
 	err = rawBlockMgr.Init(config.DataConfig.DataDir, config.DataConfig.RawBlockFilePrefix, ptrBlockIndex.RawBlockFileTag)
 	if err != nil {
 		return err
@@ -72,7 +71,7 @@ func (s *Service) GetRawBlock(r *http.Request, args *string, reply *string) erro
 	if err != nil {
 		return err
 	}
-	ptrRawBlock := new(rawblock.RawBlock)
+	ptrRawBlock := new(RawBlock)
 	err = ptrRawBlock.UnPack(rawBlockMgr.RawBlockFileObj)
 	if err != nil {
 		return err
