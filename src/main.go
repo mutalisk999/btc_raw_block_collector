@@ -294,7 +294,7 @@ func main() {
 	if *reindex {
 		err = rebuildIndex()
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println("rebuildIndex", err)
 		}
 		unLockDataDir()
 		return
@@ -302,19 +302,19 @@ func main() {
 
 	err = appInit()
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("appInit", err)
 		unLockDataDir()
 		return
 	}
 	err = appRun()
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("appRun", err)
 		unLockDataDir()
 		return
 	}
 	err = appCmd()
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("appCmd", err)
 		unLockDataDir()
 		return
 	}
