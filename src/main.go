@@ -281,6 +281,7 @@ func main() {
 	jsonParser := new(JsonStruct)
 	err = jsonParser.Load("config.json", &config)
 	if err != nil {
+		fmt.Println("Load config.json", err)
 		return
 	}
 
