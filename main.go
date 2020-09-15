@@ -149,7 +149,7 @@ func appCmd() error {
 			quitFlag = true
 			break
 		}
-		stdoutWriter.Flush()
+		_ = stdoutWriter.Flush()
 		strLine, err := stdinReader.ReadString('\n')
 		if err != nil {
 			quitFlag = true
@@ -175,8 +175,8 @@ func appCmd() error {
 	<-quitChan
 
 	// sync and close
-	blockIndexMgr.BlockIndexFileObj.Close()
-	latestRawBlockMgr.RawBlockFileObj.Close()
+	_ = blockIndexMgr.BlockIndexFileObj.Close()
+	_ = latestRawBlockMgr.RawBlockFileObj.Close()
 
 	return nil
 }
@@ -260,7 +260,7 @@ func lockDataDir() error {
 	if err != nil {
 		return err
 	}
-	lockFile.Close()
+	_ = lockFile.Close()
 	return nil
 }
 
@@ -297,28 +297,28 @@ func main() {
 		if err != nil {
 			fmt.Println("rebuildIndex", err)
 		}
-		unLockDataDir()
+		_ = unLockDataDir()
 		return
 	}
 
 	err = appInit()
 	if err != nil {
 		fmt.Println("appInit", err)
-		unLockDataDir()
+		_ = unLockDataDir()
 		return
 	}
 	err = appRun()
 	if err != nil {
 		fmt.Println("appRun", err)
-		unLockDataDir()
+		_ = unLockDataDir()
 		return
 	}
 	err = appCmd()
 	if err != nil {
 		fmt.Println("appCmd", err)
-		unLockDataDir()
+		_ = unLockDataDir()
 		return
 	}
-	unLockDataDir()
+	_ = unLockDataDir()
 	return
 }

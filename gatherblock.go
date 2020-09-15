@@ -98,9 +98,9 @@ func doGatherBlock(goroutine goroutine_mgr.Goroutine, args ...interface{}) {
 				// add new block data
 				rawBlockNew := new(RawBlock)
 				rawBlockNew.BlockHeight = NewBlockHeight
-				rawBlockNew.BlockHash.SetHex(blockHash)
+				_ = rawBlockNew.BlockHash.SetHex(blockHash)
 				rawBlockNew.CompressedType = 0
-				rawBlockNew.RawBlockData.SetHex(rawBlockData)
+				_ = rawBlockNew.RawBlockData.SetHex(rawBlockData)
 				blockFileInfo, err := os.Stat(config.DataConfig.DataDir + "/" + config.DataConfig.RawBlockFilePrefix + "." + strconv.Itoa(int(latestRawBlockMgr.RawBlockFileTag)))
 				if err != nil {
 					quitFlag = true
@@ -108,10 +108,10 @@ func doGatherBlock(goroutine goroutine_mgr.Goroutine, args ...interface{}) {
 				}
 				if blockFileInfo.Size() > 1*1024*1024*1024 {
 					newRawBlockMgr := new(RawBlockManager)
-					newRawBlockMgr.Init(config.DataConfig.DataDir, config.DataConfig.RawBlockFilePrefix, latestRawBlockMgr.RawBlockFileTag+1)
+					_ = newRawBlockMgr.Init(config.DataConfig.DataDir, config.DataConfig.RawBlockFilePrefix, latestRawBlockMgr.RawBlockFileTag+1)
 					newRawBlockMgr.BlockHeight = latestRawBlockMgr.BlockHeight
 					newRawBlockMgr.BlockFileEndPos = 0
-					latestRawBlockMgr.RawBlockFileObj.Close()
+					_ = latestRawBlockMgr.RawBlockFileObj.Close()
 					latestRawBlockMgr = newRawBlockMgr
 					blockFileInfo, err = os.Stat(config.DataConfig.DataDir + "/" + config.DataConfig.RawBlockFilePrefix + "." + strconv.Itoa(int(latestRawBlockMgr.RawBlockFileTag)))
 					if err != nil {
@@ -129,7 +129,7 @@ func doGatherBlock(goroutine goroutine_mgr.Goroutine, args ...interface{}) {
 				// add new block index
 				blockIndexNew := new(RawBlockIndex)
 				blockIndexNew.BlockHeight = NewBlockHeight
-				blockIndexNew.BlockHash.SetHex(blockHash)
+				_ = blockIndexNew.BlockHash.SetHex(blockHash)
 				blockIndexNew.RawBlockSize = uint32(len(rawBlockData) / 2)
 				blockIndexNew.RawBlockFileTag = latestRawBlockMgr.RawBlockFileTag
 				blockIndexNew.BlockFileStartPos = startPos
